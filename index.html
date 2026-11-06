@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Contábil ERP Profissional</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fontes Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SheetJS CDN para Exportação Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f0f7ff', 100: '#e0effe', 500: '#0284c7', 600: '#0369a1', 700: '#075985', 900: '#0c4a6e' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; font-size: 11pt; color: black !important; }
+            .shadow-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+        }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-800 antialiased flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- CABEÇALHO PRINCIPAL DO SISTEMA -->
+    <header class="bg-slate-900 text-white border-b border-slate-800 no-print flex-shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo / Título -->
+                <div class="flex items-center space-x-3">
+                    <div class="bg-brand-600 p-2 rounded-lg text-white">
+                        <i data-lucide="calculator" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-tight text-white">ERP Contábil Pro</h1>
+                        <p class="text-xs text-slate-400">Simulador Corporativo & Didático CPC/CFC</p>
+                    </div>
+                </div>
+
+                <!-- Ações e Gerenciamento de Abas/Empresas -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="openModal('modalNovaEmpresa')" class="inline-flex items-center space-x-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold px-3 py-2 rounded-md transition shadow-sm">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Nova Empresa</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BARRA DE ABAS DE EMPRESAS ACTIVE -->
+        <div class="bg-slate-800 border-t border-slate-700/50 px-4 sm:px-8 flex items-center space-x-1 overflow-x-auto" id="listaEmpresasAbas">
+            <!-- Abas renderizadas dinamicamente via JS -->
+        </div>
+    </header>
+
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- SUB-CABEÇALHO DA EMPRESA ATIVA & PAINEL DE FILTROS DE COMPETÊNCIA -->
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm no-print">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-3">
+                        <h2 class="text-xl font-bold text-slate-900" id="empresaNomeHeader">Empresa Exemplo S.A.</h2>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800" id="empresaTipoBadge">
+                            Ativa
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700" id="empresaStatusBadge">
+                            Ativa
+                        </span>
+                        <!-- BOTÃO DE EDITAR DADOS DA EMPRESA -->
+                        <button type="button" onclick="abrirModalEditarEmpresa()" title="Editar Dados Cadastrais" class="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition border border-slate-200">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-1 mt-2 text-xs text-slate-500">
+                        <span class="flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5"></i> <strong>Sócios:</strong> <span id="empresaSociosHeader">-</span></span>
+                        <span class="flex items-center gap-1"><i data-lucide="user-check" class="w-3.5 h-3.5"></i> <strong>Contador:</strong> <span id="empresaContadorHeader">-</span></span>
+                        <span class="flex items-center gap-1"><i data-lucide="award" class="w-3.5 h-3.5"></i> <strong>CRC:</strong> <span id="empresaCrcHeader">-</span></span>
+                    </div>
+                </div>
+
+                <!-- Filtro de Competência e Ações da Empresa -->
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-2 bg-slate-50 border border-slate-200 rounded-lg p-1.5">
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-500 ml-1"></i>
+                        <label for="filtroCompetencia" class="text-xs font-medium text-slate-600">Competência:</label>
+                        <select id="filtroCompetencia" onchange="alterarCompetencia(this.value)" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded px-2.5 py-1 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="TODAS">Acumulado Geral (Todas)</option>
+                        </select>
+                    </div>
+
+                    <!-- BOTÃO DE ALTERAR STATUS (DESATIVAR / REATIVAR) -->
+                    <button type="button" onclick="alternarStatusEmpresa(event)" id="btnAlternarStatusEmpresa" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition border border-slate-200">
+                        <i data-lucide="power" class="w-4 h-4"></i>
+                        <span id="labelStatusBtn">Desativar</span>
+                    </button>
+
+                    <!-- BOTÃO DE EXCLUSÃO (HABILITADO APENAS QUANDO DESATIVADA) -->
+                    <button type="button" onclick="confirmarExclusaoEmpresa(event)" id="btnExcluirEmpresa" title="Excluir Empresa Atual" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition border border-slate-200">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CABEÇALHO PARA IMPRESSÃO (OFICIAL) -->
+        <div class="hidden print-only bg-white p-4 border-b border-slate-300 mb-6">
+            <h1 class="text-2xl font-bold uppercase tracking-wider text-slate-900" id="printEmpresaNome">NOME DA EMPRESA</h1>
+            <div class="grid grid-cols-2 gap-4 mt-3 text-xs border-t pt-2">
+                <div>
+                    <p><strong>Quadro Societário:</strong> <span id="printEmpresaSocios"></span></p>
+                    <p><strong>Competência / Período:</strong> <span id="printCompetencia"></span></p>
+                </div>
+                <div class="text-right">
+                    <p><strong>Contador Responsável:</strong> <span id="printEmpresaContador"></span></p>
+                    <p><strong>CRC:</strong> <span id="printEmpresaCrc"></span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- MENUS E ABAS SECUNDÁRIAS (RELATÓRIOS E FERRAMENTAS) -->
+        <div class="border-b border-slate-200 no-print">
+            <nav class="flex space-x-6 overflow-x-auto" aria-label="Tabs">
+                <button onclick="switchTab('lancamentos')" id="tab-lancamentos" class="tab-btn border-brand-500 text-brand-600 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2">
+                    <i data-lucide="pen-tool" class="w-4 h-4"></i> Lançamentos Contábeis
+                </button>
+                <button onclick="switchTab('balanco')" id="tab-balanco" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2">
+                    <i data-lucide="scale" class="w-4 h-4"></i> Balanço Patrimonial
+                </button>
+                <button onclick="switchTab('dre')" id="tab-dre" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2">
+                    <i data-lucide="trending-up" class="w-4 h-4"></i> DRE
+                </button>
+                <button onclick="switchTab('balancete')" id="tab-balancete" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2">
+                    <i data-lucide="list-checks" class="w-4 h-4"></i> Balancete de Verificação
+                </button>
+                <button onclick="switchTab('diario')" id="tab-diario" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2">
+                    <i data-lucide="book-open" class="w-4 h-4"></i> Livro Diário
+                </button>
+                <button onclick="switchTab('razoetes')" id="tab-razoetes" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2">
+                    <i data-lucide="columns" class="w-4 h-4"></i> Razoetes (Razão)
+                </button>
+                <button onclick="switchTab('guia')" id="tab-guia" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2 bg-amber-50/50 rounded-t-lg px-2 text-amber-700 hover:text-amber-800">
+                    <i data-lucide="book-marked" class="w-4 h-4 text-amber-600"></i> Guia Didático
+                </button>
+            </nav>
+        </div>
+
+        <!-- CONTEÚDO DAS ABAS -->
+
+        <!-- 1. ABA LANÇAMENTOS CONTÁBEIS -->
+        <section id="content-lancamentos" class="tab-content space-y-6">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="file-plus" class="w-5 h-5 text-brand-600"></i> Novo Lançamento Contábil (Partida Dobrada)
+                        </h3>
+                        <p class="text-xs text-slate-500">Assegure a igualdade entre o Total de Débitos e o Total de Créditos.</p>
+                    </div>
+                    <span class="text-xs bg-slate-100 font-mono px-2.5 py-1 rounded text-slate-600" id="indicadorStatusPartida">Débito = Crédito</span>
+                </div>
+
+                <form id="formLancamento" onsubmit="salvarLancamento(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Data da Operação *</label>
+                            <input type="date" id="lancData" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Histórico da Operação *</label>
+                            <input type="text" id="lancHistorico" placeholder="Ex: Venda de mercadorias a vista conforme NF 102" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- TABELA DE LINHAS DE DÉBITO E CRÉDITO -->
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-2.5 w-24">Tipo</th>
+                                    <th class="p-2.5">Conta Contábil</th>
+                                    <th class="p-2.5 w-36">Valor (R$)</th>
+                                    <th class="p-2.5 w-12 text-center">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaLinhasLancamento" class="divide-y divide-slate-100">
+                                <!-- Linhas inseridas via JS -->
+                            </tbody>
+                            <tfoot class="bg-slate-50 border-t border-slate-200 font-semibold">
+                                <tr>
+                                    <td colspan="2" class="p-2.5 text-right text-slate-600">Totais:</td>
+                                    <td class="p-2.5">
+                                        <div class="flex flex-col text-xs font-mono">
+                                            <span class="text-blue-700">D: R$ <span id="totalDebitoCalc">0,00</span></span>
+                                            <span class="text-emerald-700">C: R$ <span id="totalCreditoCalc">0,00</span></span>
+                                        </div>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <button type="button" onclick="adicionarLinhaLancamento()" class="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-semibold px-3 py-1.5 rounded bg-brand-50 hover:bg-brand-100 transition">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Adicionar Linha
+                        </button>
+                        <button type="submit" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow-sm transition">
+                            Registrar Lançamento
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- HISTÓRICO DE LANÇAMENTOS RECENTES -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4 text-slate-500"></i> Lançamentos Realizados na Competência
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50 text-slate-600">
+                                <th class="p-2">Nº</th>
+                                <th class="p-2">Data</th>
+                                <th class="p-2">Histórico</th>
+                                <th class="p-2">Débito(s)</th>
+                                <th class="p-2">Crédito(s)</th>
+                                <th class="p-2 text-right">Valor Total</th>
+                                <th class="p-2 text-center no-print">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaHistoricoLancamentos" class="divide-y divide-slate-100">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. ABA BALANÇO PATRIMONIAL -->
+        <section id="content-balanco" class="tab-content hidden space-y-4">
+            <div class="flex items-center justify-between no-print">
+                <h3 class="text-lg font-bold text-slate-900">Balanço Patrimonial</h3>
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportarExcel('tabelaBalancoExport', 'Balanco_Patrimonial')" class="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
+                    </button>
+                    <button onclick="window.print()" class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Imprimir / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="tabelaBalancoExport" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- ATIVO -->
+                    <div>
+                        <h4 class="text-sm font-bold text-brand-700 uppercase tracking-wider pb-2 border-b-2 border-brand-500 flex justify-between">
+                            <span>ATIVO</span>
+                            <span class="font-mono" id="totalAtivoTopo">R$ 0,00</span>
+                        </h4>
+                        <div class="mt-3 space-y-4">
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-700 uppercase mb-1">Circulante</h5>
+                                <div class="space-y-1 text-xs" id="ativoCirculanteLista"></div>
+                                <div class="flex justify-between font-semibold text-xs border-t pt-1 mt-2 text-slate-700">
+                                    <span>Total Circulante:</span>
+                                    <span id="subtotalAtivoCirculante">R$ 0,00</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-700 uppercase mb-1">Não Circulante</h5>
+                                <div class="space-y-1 text-xs" id="ativoNaoCirculanteLista"></div>
+                                <div class="flex justify-between font-semibold text-xs border-t pt-1 mt-2 text-slate-700">
+                                    <span>Total Não Circulante:</span>
+                                    <span id="subtotalAtivoNaoCirculante">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PASSIVO & PL -->
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider pb-2 border-b-2 border-slate-700 flex justify-between">
+                            <span>PASSIVO + PATRIMÔNIO LÍQUIDO</span>
+                            <span class="font-mono" id="totalPassivoPlTopo">R$ 0,00</span>
+                        </h4>
+                        <div class="mt-3 space-y-4">
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-700 uppercase mb-1">Passivo Circulante</h5>
+                                <div class="space-y-1 text-xs" id="passivoCirculanteLista"></div>
+                                <div class="flex justify-between font-semibold text-xs border-t pt-1 mt-2 text-slate-700">
+                                    <span>Total Passivo Circulante:</span>
+                                    <span id="subtotalPassivoCirculante">R$ 0,00</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-slate-700 uppercase mb-1">Patrimônio Líquido</h5>
+                                <div class="space-y-1 text-xs" id="patrimonioLiquidoLista"></div>
+                                <div class="flex justify-between font-semibold text-xs border-t pt-1 mt-2 text-slate-700">
+                                    <span>Total Patrimônio Líquido:</span>
+                                    <span id="subtotalPL">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RODAPÉ DE IGUALDADE PATRIMONIAL -->
+                <div class="mt-6 pt-4 border-t-2 border-slate-300 flex justify-between items-center bg-slate-50 p-4 rounded-lg">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold uppercase text-slate-600">Equilíbrio Patrimonial:</span>
+                        <span id="badgeEquilibrioBalanco" class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800">OK (Ativo = Passivo + PL)</span>
+                    </div>
+                    <div class="text-sm font-bold font-mono">
+                        <span class="mr-4 text-brand-700">Ativo: R$ <span id="totalAtivoRodape">0,00</span></span>
+                        <span class="text-slate-800">Passivo + PL: R$ <span id="totalPassivoPlRodape">0,00</span></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ABA DRE -->
+        <section id="content-dre" class="tab-content hidden space-y-4">
+            <div class="flex items-center justify-between no-print">
+                <h3 class="text-lg font-bold text-slate-900">Demonstração do Resultado do Exercício (DRE)</h3>
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportarExcel('tabelaDreExport', 'DRE')" class="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
+                    </button>
+                    <button onclick="window.print()" class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Imprimir / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="tabelaDreExport" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm max-w-3xl mx-auto">
+                <table class="w-full text-xs">
+                    <tbody class="divide-y divide-slate-100" id="corpoDre">
+                        <!-- Preenchido via JS dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 4. ABA BALANCETE DE VERIFICAÇÃO -->
+        <section id="content-balancete" class="tab-content hidden space-y-4">
+            <div class="flex items-center justify-between no-print">
+                <h3 class="text-lg font-bold text-slate-900">Balancete de Verificação</h3>
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportarExcel('tabelaBalanceteExport', 'Balancete')" class="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
+                    </button>
+                    <button onclick="window.print()" class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Imprimir / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="tabelaBalanceteExport" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="p-2.5 font-bold">Código / Conta Contábil</th>
+                            <th class="p-2.5 font-bold text-right">Saldo Devedor (R$)</th>
+                            <th class="p-2.5 font-bold text-right">Saldo Credor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoBalancete" class="divide-y divide-slate-100">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                    <tfoot class="bg-slate-50 font-bold border-t-2 border-slate-300">
+                        <tr>
+                            <td class="p-2.5 uppercase">Totais Gerais</td>
+                            <td class="p-2.5 text-right font-mono text-blue-700" id="totalBalanceteDebito">R$ 0,00</td>
+                            <td class="p-2.5 text-right font-mono text-emerald-700" id="totalBalanceteCredito">R$ 0,00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+
+        <!-- 5. ABA LIVRO DIÁRIO -->
+        <section id="content-diario" class="tab-content hidden space-y-4">
+            <div class="flex items-center justify-between no-print">
+                <h3 class="text-lg font-bold text-slate-900">Livro Diário Oficial</h3>
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportarExcel('tabelaDiarioExport', 'Livro_Diario')" class="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
+                    </button>
+                    <button onclick="window.print()" class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Imprimir / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="tabelaDiarioExport" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                        <tr>
+                            <th class="p-2.5 w-16">Lanç.</th>
+                            <th class="p-2.5 w-24">Data</th>
+                            <th class="p-2.5">Histórico e Contas Envolvidas</th>
+                            <th class="p-2.5 text-right w-32">Débito (R$)</th>
+                            <th class="p-2.5 text-right w-32">Crédito (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoLivroDiario" class="divide-y divide-slate-100">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 6. ABA RAZOETES (LIVRO RAZÃO) -->
+        <section id="content-razoetes" class="tab-content hidden space-y-4">
+            <div class="flex items-center justify-between no-print">
+                <h3 class="text-lg font-bold text-slate-900">Razoetes (Contas em T)</h3>
+                <div class="flex items-center space-x-2">
+                    <button onclick="window.print()" class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Imprimir / PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="containerRazoetes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Razoetes renderizados em T dinamicamente -->
+            </div>
+        </section>
+
+        <!-- 7. ABA GUIA DIDÁTICO / PASSO A PASSO -->
+        <section id="content-guia" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                <div class="border-b border-slate-200 pb-4 mb-6">
+                    <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="graduation-cap" class="w-6 h-6 text-brand-600"></i> Guia Prático de Contabilidade Aplicada (CPC / CFC)
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-1">Aprenda a realizar e auditar lançamentos contábeis reais utilizando a mecânica das partidas dobradas.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- PASSO 1 -->
+                    <div class="border border-slate-200 rounded-lg p-5 bg-slate-50/50">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs">1</span>
+                            <h4 class="font-bold text-sm text-slate-900">Constituição e Integralização de Capital</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-3">Abertura da sociedade com depósito em conta bancária ou entrada de valores no caixa.</p>
+                        <div class="bg-white border rounded p-3 font-mono text-xs space-y-1 text-slate-700">
+                            <p class="text-blue-700"><strong>D:</strong> 1.1.1.02 - Banco Conta Movimento (Ativo)</p>
+                            <p class="text-emerald-700"><strong>C:</strong> 3.1.1.01 - Capital Social (Patrimônio Líquido)</p>
+                        </div>
+                    </div>
+
+                    <!-- PASSO 2 -->
+                    <div class="border border-slate-200 rounded-lg p-5 bg-slate-50/50">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs">2</span>
+                            <h4 class="font-bold text-sm text-slate-900">Aquisição de Estoque com Imposto Recuperável</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-3">Separação do valor líquido da mercadoria e do tributo a ser compensado no futuro.</p>
+                        <div class="bg-white border rounded p-3 font-mono text-xs space-y-1 text-slate-700">
+                            <p class="text-blue-700"><strong>D:</strong> 1.1.3.01 - Estoque de Mercadorias (Líquido)</p>
+                            <p class="text-blue-700"><strong>D:</strong> 1.1.4.01 - ICMS a Recuperar (Ativo)</p>
+                            <p class="text-emerald-700"><strong>C:</strong> 2.1.1.01 - Fornecedores (Passivo)</p>
+                        </div>
+                    </div>
+
+                    <!-- PASSO 3 -->
+                    <div class="border border-slate-200 rounded-lg p-5 bg-slate-50/50">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs">3</span>
+                            <h4 class="font-bold text-sm text-slate-900">Venda de Mercadorias & Baixa do CMV</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-3">Toda venda gera dois lançamentos concomitantes: o reconhecimento da receita e o custo da venda.</p>
+                        <div class="bg-white border rounded p-3 font-mono text-xs space-y-1 text-slate-700 mb-2">
+                            <p class="text-slate-500 italic font-sans mb-1">// Reconhecimento da Receita:</p>
+                            <p class="text-blue-700"><strong>D:</strong> 1.1.1.02 - Banco ou Clientes (Ativo)</p>
+                            <p class="text-emerald-700"><strong>C:</strong> 4.1.1.01 - Receita Bruta de Vendas (Resultado)</p>
+                        </div>
+                        <div class="bg-white border rounded p-3 font-mono text-xs space-y-1 text-slate-700">
+                            <p class="text-slate-500 italic font-sans mb-1">// Baixa do Custo (CMV):</p>
+                            <p class="text-blue-700"><strong>D:</strong> 4.3.1.01 - Custo das Mercadorias Vendidas (DRE)</p>
+                            <p class="text-emerald-700"><strong>C:</strong> 1.1.3.01 - Estoque de Mercadorias (Ativo)</p>
+                        </div>
+                    </div>
+
+                    <!-- PASSO 4 -->
+                    <div class="border border-slate-200 rounded-lg p-5 bg-slate-50/50">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <span class="w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs">4</span>
+                            <h4 class="font-bold text-sm text-slate-900">Apuração de Impostos (Confronto)</h4>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-3">Transferência do saldo do imposto a recuperar para compensar a obrigação a recolher.</p>
+                        <div class="bg-white border rounded p-3 font-mono text-xs space-y-1 text-slate-700">
+                            <p class="text-blue-700"><strong>D:</strong> 2.1.2.01 - ICMS a Recolher (Passivo)</p>
+                            <p class="text-emerald-700"><strong>C:</strong> 1.1.4.01 - ICMS a Recuperar (Ativo)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: NOVA EMPRESA -->
+    <div id="modalNovaEmpresa" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4 no-print">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i data-lucide="building" class="w-4 h-4 text-brand-500"></i> Cadastrar Nova Empresa
+                </h3>
+                <button onclick="closeModal('modalNovaEmpresa')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+    <!-- MODAL: EDITAR EMPRESA -->
+    <div id="modalEditarEmpresa" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4 no-print">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i data-lucide="edit" class="w-4 h-4 text-brand-500"></i> Editar Dados Cadastrais da Empresa
+                </h3>
+                <button onclick="closeModal('modalEditarEmpresa')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form onsubmit="salvarEdicaoEmpresa(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Razão Social / Nome da Empresa *</label>
+                    <input type="text" id="editRazaoSocial" required placeholder="Ex: Comercial Silva & Santos Ltda" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nome dos Sócios *</label>
+                        <input type="text" id="editSocios" required placeholder="Ex: Carlos Silva, Maria Santos" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Contador Responsável *</label>
+                        <input type="text" id="editContador" required placeholder="Ex: Ana Paula Pereira" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">CRC do Contador *</label>
+                    <input type="text" id="editCrc" required placeholder="Ex: CRC-SP 123456/O-0" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modalEditarEmpresa')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold bg-brand-600 hover:bg-brand-500 text-white rounded-lg">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NOTIFICAÇÕES TOAST DE ALERTA DO SISTEMA -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none no-print"></div>
+
+    <!-- JAVASCRIPT DA APLICAÇÃO CONTÁBIL INTEGRADA -->
+    <script>
+        /**
+         * ESTRUTURA DO PLANO DE CONTAS PADRÃO (CPC / CFC)
+         */
+        const PLANO_DE_CONTAS = [
+            // ATIVO CIRCULANTE
+            { codigo: '1.1.1.01', nome: 'Caixa Geral', grupo: 'ATIVO', subgrupo: 'CIRCULANTE', natureza: 'D' },
+            { codigo: '1.1.1.02', nome: 'Banco Conta Movimento', grupo: 'ATIVO', subgrupo: 'CIRCULANTE', natureza: 'D' },
+            { codigo: '1.1.2.01', nome: 'Clientes / Contas a Receber', grupo: 'ATIVO', subgrupo: 'CIRCULANTE', natureza: 'D' },
+            { codigo: '1.1.3.01', nome: 'Estoque de Mercadorias', grupo: 'ATIVO', subgrupo: 'CIRCULANTE', natureza: 'D' },
+            { codigo: '1.1.4.01', nome: 'ICMS a Recuperar', grupo: 'ATIVO', subgrupo: 'CIRCULANTE', natureza: 'D' },
+            { codigo: '1.1.4.02', nome: 'PIS/COFINS a Recuperar', grupo: 'ATIVO', subgrupo: 'CIRCULANTE', natureza: 'D' },
+            { codigo: '1.1.5.01', nome: 'Adiantamento a Fornecedores', grupo: 'ATIVO', subgrupo: 'CIRCULANTE', natureza: 'D' },
+            
+            // ATIVO NÃO CIRCULANTE
+            { codigo: '1.2.1.01', nome: 'Imobilizado - Máquinas e Equipamentos', grupo: 'ATIVO', subgrupo: 'NAO_CIRCULANTE', natureza: 'D' },
+            { codigo: '1.2.1.02', nome: 'Imobilizado - Veículos', grupo: 'ATIVO', subgrupo: 'NAO_CIRCULANTE', natureza: 'D' },
+            { codigo: '1.2.1.09', nome: '(-) Depreciação Acumulada', grupo: 'ATIVO', subgrupo: 'NAO_CIRCULANTE', natureza: 'C', redutora: true },
+
+            // PASSIVO CIRCULANTE
+            { codigo: '2.1.1.01', nome: 'Fornecedores a Pagar', grupo: 'PASSIVO', subgrupo: 'CIRCULANTE', natureza: 'C' },
+            { codigo: '2.1.2.01', nome: 'Salários e Encargos a Pagar', grupo: 'PASSIVO', subgrupo: 'CIRCULANTE', natureza: 'C' },
+            { codigo: '2.1.3.01', nome: 'ICMS a Recolher', grupo: 'PASSIVO', subgrupo: 'CIRCULANTE', natureza: 'C' },
+            { codigo: '2.1.3.02', nome: 'IRPJ / CSLL a Pagar', grupo: 'PASSIVO', subgrupo: 'CIRCULANTE', natureza: 'C' },
+            { codigo: '2.1.4.01', nome: 'Empréstimos Bancários CP', grupo: 'PASSIVO', subgrupo: 'CIRCULANTE', natureza: 'C' },
+
+            // PATRIMÔNIO LÍQUIDO
+            { codigo: '3.1.1.01', nome: 'Capital Social Integralizado', grupo: 'PL', subgrupo: 'PL', natureza: 'C' },
+            { codigo: '3.1.2.01', nome: 'Reservas de Lucros', grupo: 'PL', subgrupo: 'PL', natureza: 'C' },
+
+            // RESULTADO - RECEITAS (DRE)
+            { codigo: '4.1.1.01', nome: 'Receita Bruta de Vendas', grupo: 'RESULTADO', subgrupo: 'RECEITA_BRUTA', natureza: 'C' },
+            { codigo: '4.2.1.01', nome: '(-) Deduções da Receita Bruta / Impostos', grupo: 'RESULTADO', subgrupo: 'DEDUCAO_RECEITA', natureza: 'D', redutora: true },
+            
+            // RESULTADO - CUSTOS E DESPESAS (DRE)
+            { codigo: '4.3.1.01', nome: 'Custo das Mercadorias Vendidas (CMV)', grupo: 'RESULTADO', subgrupo: 'CMV', natureza: 'D' },
+            { codigo: '4.4.1.01', nome: 'Despesas Operacionais e Salários', grupo: 'RESULTADO', subgrupo: 'DESPESA_OPERACIONAL', natureza: 'D' },
+            { codigo: '4.4.2.01', nome: 'Despesas Financeiras / Juros', grupo: 'RESULTADO', subgrupo: 'DESPESA_OPERACIONAL', natureza: 'D' },
+            { codigo: '4.5.1.01', nome: 'Receitas Financeiras', grupo: 'RESULTADO', subgrupo: 'RECEITA_FINANCEIRA', natureza: 'C' },
+            { codigo: '4.6.1.01', nome: 'Provisão para IRPJ / CSLL', grupo: 'RESULTADO', subgrupo: 'IMPOSTO_RENDA', natureza: 'D' }
+        ];
+
+        /**
+         * ESTADO GLOBAL DA APLICAÇÃO
+         */
+        let estado = {
+            empresaAtivaId: null,
+            competenciaFiltro: 'TODAS', // 'YYYY-MM' ou 'TODAS'
+            empresas: []
+        };
+
+        // Contador temporário de linhas para formulário de lançamento
+        let contadorLinhasLancamento = 0;
+
+        /**
+         * PERSISTÊNCIA LOCAL STORAGE
+         */
+        function carregarDadosStorage() {
+            try {
+                const dados = localStorage.getItem('erp_simulador_contabil_data');
+                if (dados) {
+                    const parsed = JSON.parse(dados);
+                    estado.empresas = parsed.empresas || [];
+                    estado.empresaAtivaId = parsed.empresaAtivaId || null;
+                }
+            } catch (e) {
+                console.error("Erro ao carregar dados do LocalStorage:", e);
+            }
+        }
+
+        function salvarDadosStorage() {
+            try {
+                localStorage.setItem('erp_simulador_contabil_data', JSON.stringify({
+                    empresas: estado.empresas,
+                    empresaAtivaId: estado.empresaAtivaId
+                }));
+            } catch (e) {
+                console.error("Erro ao salvar no LocalStorage:", e);
+            }
+        }
+
+        function getEmpresaAtiva() {
+            return estado.empresas.find(e => e.id === estado.empresaAtivaId) || null;
+        }
+
+        function selecionarEmpresa(id) {
+            estado.empresaAtivaId = id;
+            estado.competenciaFiltro = 'TODAS';
+            salvarDadosStorage();
+            renderizarTudo();
+        }
+
+        function alterarCompetencia(val) {
+            estado.competenciaFiltro = val;
+            renderizarTudo();
+        }
+
+        function atualizarSelectCompetencias(emp) {
+            const select = document.getElementById('filtroCompetencia');
+            if (!select) return;
+
+            const valorAtual = estado.competenciaFiltro;
+            select.innerHTML = '<option value="TODAS">Acumulado Geral (Todas)</option>';
+
+            const competencias = new Set();
+            (emp.lancamentos || []).forEach(l => {
+                if (l.data) {
+                    const mesAno = l.data.substring(0, 7); // YYYY-MM
+                    competencias.add(mesAno);
+                }
+            });
+
+            Array.from(competencias).sort().reverse().forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                const [ano, mes] = c.split('-');
+                opt.innerText = `${mes}/${ano}`;
+                select.appendChild(opt);
+            });
+
+            select.value = valorAtual;
+        }
+
+        /**
+         * PREPARAR LINHAS DE FORMULÁRIO DE LANÇAMENTO
+         */
+        function prepararFormularioLancamento() {
+            const container = document.getElementById('tabelaLinhasLancamento');
+            if (!container) return;
+            container.innerHTML = '';
+            contadorLinhasLancamento = 0;
+
+            const hoje = new Date().toISOString().split('T')[0];
+            const dataInput = document.getElementById('lancData');
+            if (dataInput && !dataInput.value) dataInput.value = hoje;
+            
+            const histInput = document.getElementById('lancHistorico');
+            if (histInput) histInput.value = '';
+
+            // Adiciona 2 linhas iniciais (1 Débito, 1 Crédito)
+            adicionarLinhaLancamento('D');
+            adicionarLinhaLancamento('C');
+            calcularTotaisFormLancamento();
+        }
+
+        function adicionarLinhaLancamento(tipoPadrao = 'D') {
+            const container = document.getElementById('tabelaLinhasLancamento');
+            if (!container) return;
+
+            contadorLinhasLancamento++;
+            const tr = document.createElement('tr');
+            tr.id = `linha_lanc_${contadorLinhasLancamento}`;
+
+            let opcoesContas = '<option value="">-- Selecione uma Conta --</option>';
+            PLANO_DE_CONTAS.forEach(c => {
+                opcoesContas += `<option value="${c.codigo}">${c.codigo} - ${c.nome} (${c.natureza})</option>`;
+            });
+
+            tr.innerHTML = `
+                <td class="p-2">
+                    <select class="tipo-linha bg-slate-50 border border-slate-300 rounded px-2 py-1 font-semibold focus:outline-none" onchange="calcularTotaisFormLancamento()">
+                        <option value="D" ${tipoPadrao === 'D' ? 'selected' : ''}>D (Débito)</option>
+                        <option value="C" ${tipoPadrao === 'C' ? 'selected' : ''}>C (Crédito)</option>
+                    </select>
+                </td>
+                <td class="p-2">
+                    <select class="conta-linha w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none">
+                        ${opcoesContas}
+                    </select>
+                </td>
+                <td class="p-2">
+                    <input type="number" step="0.01" min="0.01" placeholder="0,00" class="valor-linha w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 font-mono text-xs focus:outline-none" oninput="calcularTotaisFormLancamento()">
+                </td>
+                <td class="p-2 text-center">
+                    <button type="button" onclick="removerLinhaLancamento('${tr.id}')" class="text-slate-400 hover:text-red-600 transition">
+                        <i data-lucide="minus-circle" class="w-4 h-4"></i>
+                    </button>
+                </td>
+            `;
+
+            container.appendChild(tr);
+            lucide.createIcons();
+        }
+
+        function removerLinhaLancamento(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.remove();
+                calcularTotaisFormLancamento();
+            }
+        }
+
+        function calcularTotaisFormLancamento() {
+            const linhas = document.querySelectorAll('#tabelaLinhasLancamento tr');
+            let totalD = 0;
+            let totalC = 0;
+
+            linhas.forEach(linha => {
+                const tipo = linha.querySelector('.tipo-linha').value;
+                const val = parseFloat(linha.querySelector('.valor-linha').value) || 0;
+                if (tipo === 'D') totalD += val;
+                if (tipo === 'C') totalC += val;
+            });
+
+            const elemD = document.getElementById('totalDebitoCalc');
+            const elemC = document.getElementById('totalCreditoCalc');
+            const statusInd = document.getElementById('indicadorStatusPartida');
+
+            if (elemD) elemD.innerText = totalD.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (elemC) elemC.innerText = totalC.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            if (statusInd) {
+                if (Math.abs(totalD - totalC) < 0.001 && totalD > 0) {
+                    statusInd.className = "text-xs bg-emerald-100 text-emerald-800 font-mono px-2.5 py-1 rounded font-bold";
+                    statusInd.innerText = "✓ Partida Dobrada Válida (D = C)";
+                } else {
+                    statusInd.className = "text-xs bg-amber-100 text-amber-800 font-mono px-2.5 py-1 rounded font-bold";
+                    statusInd.innerText = "⚠ Partida Dobrada Desbalanceada";
+                }
+            }
+        }
+
+        function toggleTipoEmpresaUI() {
+            const tipo = document.querySelector('input[name="modalidadeEmpresa"]:checked').value;
+            const painelImp = document.getElementById('painelImplantacaoSaldos');
+            const labelA = document.getElementById('labelTipoA');
+            const labelB = document.getElementById('labelTipoB');
+
+            if (tipo === 'TIPO_B') {
+                if (painelImp) painelImp.classList.remove('hidden');
+                labelB.classList.add('border-brand-500', 'bg-brand-50/20');
+                labelA.classList.remove('border-brand-500', 'bg-brand-50/20');
+            } else {
+                if (painelImp) painelImp.classList.add('hidden');
+                labelA.classList.add('border-brand-500', 'bg-brand-50/20');
+                labelB.classList.remove('border-brand-500', 'bg-brand-50/20');
+            }
+        }
+
+        function renderizarLinhasModalImplantacao() {
+            const container = document.getElementById('listaImplantacaoContas');
+            if (!container) return;
+            container.innerHTML = '';
+
+            PLANO_DE_CONTAS.filter(c => c.grupo === 'ATIVO' || c.grupo === 'PASSIVO' || c.grupo === 'PL').forEach(conta => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between text-xs gap-2";
+                div.innerHTML = `
+                    <span class="truncate w-1/2" title="${conta.codigo} ${conta.nome}">${conta.codigo} ${conta.nome}</span>
+                    <select class="border border-slate-300 rounded px-1 py-0.5 text-[11px]" onchange="atualizarSomasImplantacao()">
+                        <option value="D" ${conta.natureza === 'D' ? 'selected' : ''}>D</option>
+                        <option value="C" ${conta.natureza === 'C' ? 'selected' : ''}>C</option>
+                    </select>
+                    <input type="number" step="0.01" min="0" placeholder="0,00" data-codigo="${conta.codigo}" class="imp-valor w-24 border border-slate-300 rounded px-2 py-0.5 text-right font-mono text-[11px]" oninput="atualizarSomasImplantacao()">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function calcularTotaisImplantacaoModal() {
+            let somaD = 0;
+            let somaC = 0;
+            const inputs = document.querySelectorAll('#listaImplantacaoContas .imp-valor');
+            inputs.forEach(inp => {
+                const val = parseFloat(inp.value) || 0;
+                const tipo = inp.previousElementSibling.value;
+                if (tipo === 'D') somaD += val;
+                if (tipo === 'C') somaC += val;
+            });
+            return { somaD, somaC };
+        }
+
+        function atualizarSomasImplantacao() {
+            const { somaD, somaC } = calcularTotaisImplantacaoModal();
+            const elemD = document.getElementById('impSomaDebito');
+            const elemC = document.getElementById('impSomaCredito');
+            if (elemD) elemD.innerText = somaD.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (elemC) elemC.innerText = somaC.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        /**
+         * CÁLCULO DE SALDOS DAS CONTAS
+         */
+        function obterLancamentosFiltrados(emp) {
+            if (!emp.lancamentos) return [];
+            if (estado.competenciaFiltro === 'TODAS') return emp.lancamentos;
+            return emp.lancamentos.filter(l => l.data && l.data.substring(0, 7) === estado.competenciaFiltro);
+        }
+
+        function calcularSaldosContas(emp) {
+            const lancamentos = obterLancamentosFiltrados(emp);
+            const saldos = {};
+
+            PLANO_DE_CONTAS.forEach(c => {
+                saldos[c.codigo] = { ...c, totalDebito: 0, totalCredito: 0, saldoFinal: 0 };
+            });
+
+            lancamentos.forEach(l => {
+                (l.itens || []).forEach(item => {
+                    if (saldos[item.contaCodigo]) {
+                        if (item.tipo === 'D') saldos[item.contaCodigo].totalDebito += item.valor;
+                        if (item.tipo === 'C') saldos[item.contaCodigo].totalCredito += item.valor;
+                    }
+                });
+            });
+
+            // Apurar Saldo Final de Acordo com a Natureza
+            Object.keys(saldos).forEach(cod => {
+                const c = saldos[cod];
+                if (c.natureza === 'D') {
+                    c.saldoFinal = c.totalDebito - c.totalCredito;
+                } else {
+                    c.saldoFinal = c.totalCredito - c.totalDebito;
+                }
+            });
+
+            return saldos;
+        }
+
+        /**
+         * RENDERIZAÇÃO DE RELATÓRIOS CONTÁBEIS
+         */
+        function renderizarHistoricoLancamentos(emp) {
+            const tbody = document.getElementById('tabelaHistoricoLancamentos');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const lancs = obterLancamentosFiltrados(emp);
+            if (lancs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400 italic">Nenhum lançamento registrado nesta competência.</td></tr>`;
+                return;
+            }
+
+            lancs.slice().reverse().forEach(l => {
+                const debs = l.itens.filter(i => i.tipo === 'D').map(i => {
+                    const c = PLANO_DE_CONTAS.find(p => p.codigo === i.contaCodigo);
+                    return `${c ? c.nome : i.contaCodigo} (R$ ${i.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})})`;
+                }).join('<br>');
+
+                const creds = l.itens.filter(i => i.tipo === 'C').map(i => {
+                    const c = PLANO_DE_CONTAS.find(p => p.codigo === i.contaCodigo);
+                    return `${c ? c.nome : i.contaCodigo} (R$ ${i.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})})`;
+                }).join('<br>');
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50";
+                tr.innerHTML = `
+                    <td class="p-2 font-mono text-slate-500">${l.numero}</td>
+                    <td class="p-2 whitespace-nowrap">${l.data ? l.data.split('-').reverse().join('/') : '-'}</td>
+                    <td class="p-2 font-medium">${l.historico}</td>
+                    <td class="p-2 text-blue-700">${debs}</td>
+                    <td class="p-2 text-emerald-700">${creds}</td>
+                    <td class="p-2 text-right font-mono font-bold">R$ ${l.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td class="p-2 text-center no-print">
+                        <button onclick="excluirLancamento('${l.id}')" class="text-slate-400 hover:text-red-600 transition" title="Excluir Lançamento">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function excluirLancamento(id) {
+            const emp = getEmpresaAtiva();
+            if (!emp) return;
+
+            if (!emp.ativa) {
+                mostrarToast("Não é possível alterar lançamentos em uma empresa DESATIVADA.", "error");
+                return;
+            }
+
+            if (window.confirm("Deseja realmente remover este lançamento contábil?")) {
+                emp.lancamentos = emp.lancamentos.filter(l => l.id !== id);
+                salvarDadosStorage();
+                mostrarToast("Lançamento removido.", "info");
+                renderizarTudo();
+            }
+        }
+
+        function renderizarBalancoPatrimonial(emp) {
+            const saldos = calcularSaldosContas(emp);
+
+            // Montar Lista do Ativo
+            let totAtivoCirc = 0;
+            let totAtivoNaoCirc = 0;
+
+            const listCirc = document.getElementById('ativoCirculanteLista');
+            const listNaoCirc = document.getElementById('ativoNaoCirculanteLista');
+            listCirc.innerHTML = '';
+            listNaoCirc.innerHTML = '';
+
+            Object.values(saldos).filter(c => c.grupo === 'ATIVO').forEach(c => {
+                if (c.saldoFinal !== 0 || c.totalDebito !== 0 || c.totalCredito !== 0) {
+                    const div = document.createElement('div');
+                    div.className = "flex justify-between py-1 border-b border-slate-100";
+                    div.innerHTML = `<span>${c.codigo} - ${c.nome}</span><span class="font-mono">R$ ${c.saldoFinal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>`;
+                    
+                    if (c.subgrupo === 'CIRCULANTE') {
+                        listCirc.appendChild(div);
+                        totAtivoCirc += c.saldoFinal;
+                    } else {
+                        listNaoCirc.appendChild(div);
+                        totAtivoNaoCirc += c.saldoFinal;
+                    }
+                }
+            });
+
+            // Montar Lista do Passivo e PL
+            let totPassivoCirc = 0;
+            let totPL = 0;
+
+            const listPassCirc = document.getElementById('passivoCirculanteLista');
+            const listPL = document.getElementById('patrimonioLiquidoLista');
+            listPassCirc.innerHTML = '';
+            listPL.innerHTML = '';
+
+            Object.values(saldos).filter(c => c.grupo === 'PASSIVO' || c.grupo === 'PL').forEach(c => {
+                if (c.saldoFinal !== 0 || c.totalDebito !== 0 || c.totalCredito !== 0) {
+                    const div = document.createElement('div');
+                    div.className = "flex justify-between py-1 border-b border-slate-100";
+                    div.innerHTML = `<span>${c.codigo} - ${c.nome}</span><span class="font-mono">R$ ${c.saldoFinal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>`;
+
+                    if (c.grupo === 'PASSIVO') {
+                        listPassCirc.appendChild(div);
+                        totPassivoCirc += c.saldoFinal;
+                    } else {
+                        listPL.appendChild(div);
+                        totPL += c.saldoFinal;
+                    }
+                }
+            });
+
+            // Apuração do Lucro/Prejuízo do Exercício para incorporar no PL do Balanço
+            const lucroEx = calcularLucroLiquidoEx(saldos);
+            if (lucroEx !== 0) {
+                const div = document.createElement('div');
+                div.className = "flex justify-between py-1 border-b border-slate-100 font-semibold text-brand-700";
+                div.innerHTML = `<span>3.1.3.01 - Resultado do Exercício (LLE)</span><span class="font-mono">R$ ${lucroEx.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>`;
+                listPL.appendChild(div);
+                totPL += lucroEx;
+            }
+
+            const totalAtivo = totAtivoCirc + totAtivoNaoCirc;
+            const totalPassivoPl = totPassivoCirc + totPL;
+
+            document.getElementById('subtotalAtivoCirculante').innerText = `R$ ${totAtivoCirc.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('subtotalAtivoNaoCirculante').innerText = `R$ ${totAtivoNaoCirc.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('subtotalPassivoCirculante').innerText = `R$ ${totPassivoCirc.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('subtotalPL').innerText = `R$ ${totPL.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+            document.getElementById('totalAtivoTopo').innerText = `R$ ${totalAtivo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalPassivoPlTopo').innerText = `R$ ${totalPassivoPl.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalAtivoRodape').innerText = totalAtivo.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            document.getElementById('totalPassivoPlRodape').innerText = totalPassivoPl.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+
+            const badge = document.getElementById('badgeEquilibrioBalanco');
+            if (Math.abs(totalAtivo - totalPassivoPl) < 0.001) {
+                badge.className = "px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800";
+                badge.innerText = "OK (Ativo = Passivo + PL)";
+            } else {
+                badge.className = "px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800";
+                badge.innerText = "ALERTA: Desequilíbrio Patrimonial";
+            }
+        }
+
+        function calcularLucroLiquidoEx(saldos) {
+            let recBruta = saldos['4.1.1.01'] ? saldos['4.1.1.01'].saldoFinal : 0;
+            let deducao = saldos['4.2.1.01'] ? saldos['4.2.1.01'].saldoFinal : 0;
+            let cmv = saldos['4.3.1.01'] ? saldos['4.3.1.01'].saldoFinal : 0;
+            let despOp = saldos['4.4.1.01'] ? saldos['4.4.1.01'].saldoFinal : 0;
+            let despFin = saldos['4.4.2.01'] ? saldos['4.4.2.01'].saldoFinal : 0;
+            let recFin = saldos['4.5.1.01'] ? saldos['4.5.1.01'].saldoFinal : 0;
+            let impRenda = saldos['4.6.1.01'] ? saldos['4.6.1.01'].saldoFinal : 0;
+
+            let recLiquida = recBruta - deducao;
+            let lucroBruto = recLiquida - cmv;
+            let lair = lucroBruto - despOp - despFin + recFin;
+            return lair - impRenda;
+        }
+
+        function renderizarDRE(emp) {
+            const saldos = calcularSaldosContas(emp);
+            const corpo = document.getElementById('corpoDre');
+            if (!corpo) return;
+
+            let recBruta = saldos['4.1.1.01'] ? saldos['4.1.1.01'].saldoFinal : 0;
+            let deducao = saldos['4.2.1.01'] ? saldos['4.2.1.01'].saldoFinal : 0;
+            let recLiquida = recBruta - deducao;
+            let cmv = saldos['4.3.1.01'] ? saldos['4.3.1.01'].saldoFinal : 0;
+            let lucroBruto = recLiquida - cmv;
+            let despOp = saldos['4.4.1.01'] ? saldos['4.4.1.01'].saldoFinal : 0;
+            let despFin = saldos['4.4.2.01'] ? saldos['4.4.2.01'].saldoFinal : 0;
+            let recFin = saldos['4.5.1.01'] ? saldos['4.5.1.01'].saldoFinal : 0;
+            let lair = lucroBruto - despOp - despFin + recFin;
+            let impRenda = saldos['4.6.1.01'] ? saldos['4.6.1.01'].saldoFinal : 0;
+            let lle = lair - impRenda;
+
+            const format = (v) => `R$ ${v.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+            corpo.innerHTML = `
+                <tr class="hover:bg-slate-50"><td class="py-2.5 font-semibold">RECEITA BRUTA DE VENDAS</td><td class="py-2.5 text-right font-mono">${format(recBruta)}</td></tr>
+                <tr class="hover:bg-slate-50 text-red-700"><td class="py-2.5 pl-4">(-) Deduções da Receita Bruta / Impostos</td><td class="py-2.5 text-right font-mono">(${format(deducao)})</td></tr>
+                <tr class="bg-slate-50 font-bold border-t border-b"><td class="py-2.5">(=) RECEITA LÍQUIDA DE VENDAS</td><td class="py-2.5 text-right font-mono text-brand-700">${format(recLiquida)}</td></tr>
+                <tr class="hover:bg-slate-50 text-red-700"><td class="py-2.5 pl-4">(-) Custo das Mercadorias Vendidas (CMV)</td><td class="py-2.5 text-right font-mono">(${format(cmv)})</td></tr>
+                <tr class="bg-slate-50 font-bold border-t border-b"><td class="py-2.5">(=) LUCRO BRUTO OPERACIONAL</td><td class="py-2.5 text-right font-mono">${format(lucroBruto)}</td></tr>
+                <tr class="hover:bg-slate-50 text-red-700"><td class="py-2.5 pl-4">(-) Despesas Operacionais e Salários</td><td class="py-2.5 text-right font-mono">(${format(despOp)})</td></tr>
+                <tr class="hover:bg-slate-50 text-red-700"><td class="py-2.5 pl-4">(-) Despesas Financeiras</td><td class="py-2.5 text-right font-mono">(${format(despFin)})</td></tr>
+                <tr class="hover:bg-slate-50 text-emerald-700"><td class="py-2.5 pl-4">(+) Receitas Financeiras</td><td class="py-2.5 text-right font-mono">${format(recFin)}</td></tr>
+                <tr class="bg-slate-50 font-bold border-t border-b"><td class="py-2.5">(=) RESULTADO ANTES DOS IMPOSTOS (LAIR)</td><td class="py-2.5 text-right font-mono">${format(lair)}</td></tr>
+                <tr class="hover:bg-slate-50 text-red-700"><td class="py-2.5 pl-4">(-) Provisão IRPJ / CSLL</td><td class="py-2.5 text-right font-mono">(${format(impRenda)})</td></tr>
+                <tr class="bg-brand-50 text-brand-900 font-bold text-sm border-t-2 border-brand-500"><td class="py-3">(=) LUCRO / PREJUÍZO LÍQUIDO DO EXERCÍCIO (LLE)</td><td class="py-3 text-right font-mono text-base">${format(lle)}</td></tr>
+            `;
+        }
+
+        function renderizarBalancete(emp) {
+            const saldos = calcularSaldosContas(emp);
+            const corpo = document.getElementById('corpoBalancete');
+            if (!corpo) return;
+
+            corpo.innerHTML = '';
+            let totDebito = 0;
+            let totCredito = 0;
+
+            Object.values(saldos).forEach(c => {
+                if (c.totalDebito > 0 || c.totalCredito > 0) {
+                    let valDeb = 0;
+                    let valCred = 0;
+
+                    if (c.natureza === 'D') {
+                        if (c.saldoFinal >= 0) valDeb = c.saldoFinal;
+                        else valCred = Math.abs(c.saldoFinal);
+                    } else {
+                        if (c.saldoFinal >= 0) valCred = c.saldoFinal;
+                        else valDeb = Math.abs(c.saldoFinal);
+                    }
+
+                    totDebito += valDeb;
+                    totCredito += valCred;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50";
+                    tr.innerHTML = `
+                        <td class="p-2.5 font-medium">${c.codigo} - ${c.nome}</td>
+                        <td class="p-2.5 text-right font-mono text-blue-700">${valDeb > 0 ? 'R$ ' + valDeb.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '-'}</td>
+                        <td class="p-2.5 text-right font-mono text-emerald-700">${valCred > 0 ? 'R$ ' + valCred.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '-'}</td>
+                    `;
+                    corpo.appendChild(tr);
+                }
+            });
+
+            document.getElementById('totalBalanceteDebito').innerText = `R$ ${totDebito.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalBalanceteCredito').innerText = `R$ ${totCredito.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        }
+
+        function renderizarLivroDiario(emp) {
+            const corpo = document.getElementById('corpoLivroDiario');
+            if (!corpo) return;
+
+            corpo.innerHTML = '';
+            const lancs = obterLancamentosFiltrados(emp);
+
+            if (lancs.length === 0) {
+                corpo.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400 italic">Sem registros no Livro Diário.</td></tr>`;
+                return;
+            }
+
+            lancs.forEach(l => {
+                l.itens.forEach(item => {
+                    const conta = PLANO_DE_CONTAS.find(p => p.codigo === item.contaCodigo);
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50";
+                    tr.innerHTML = `
+                        <td class="p-2.5 font-mono text-slate-500">${l.numero}</td>
+                        <td class="p-2.5">${l.data ? l.data.split('-').reverse().join('/') : '-'}</td>
+                        <td class="p-2.5">
+                            <span class="${item.tipo === 'D' ? 'font-bold text-blue-700' : 'pl-6 font-bold text-emerald-700'}">
+                                ${item.tipo === 'D' ? 'D - ' : 'C - '} ${conta ? conta.nome : item.contaCodigo}
+                            </span>
+                            <div class="text-[11px] text-slate-500 italic mt-0.5">${l.historico}</div>
+                        </td>
+                        <td class="p-2.5 text-right font-mono text-blue-700">${item.tipo === 'D' ? 'R$ ' + item.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '-'}</td>
+                        <td class="p-2.5 text-right font-mono text-emerald-700">${item.tipo === 'C' ? 'R$ ' + item.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '-'}</td>
+                    `;
+                    corpo.appendChild(tr);
+                });
+            });
+        }
+
+        function renderizarRazoetes(emp) {
+            const container = document.getElementById('containerRazoetes');
+            if (!container) return;
+
+            container.innerHTML = '';
+            const lancamentos = obterLancamentosFiltrados(emp);
+
+            PLANO_DE_CONTAS.forEach(conta => {
+                const movs = [];
+                let totD = 0;
+                let totC = 0;
+
+                lancamentos.forEach(l => {
+                    (l.itens || []).forEach(item => {
+                        if (item.contaCodigo === conta.codigo) {
+                            if (item.tipo === 'D') totD += item.valor;
+                            if (item.tipo === 'C') totC += item.valor;
+                            movs.push({ ...item, numeroLanc: l.numero });
+                        }
+                    });
+                });
+
+                if (movs.length > 0) {
+                    const card = document.createElement('div');
+                    card.className = "bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm";
+
+                    let saldoFinalText = '';
+                    let saldoVal = 0;
+                    if (conta.natureza === 'D') {
+                        saldoVal = totD - totC;
+                        saldoFinalText = `Saldo Devedor: R$ ${saldoVal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+                    } else {
+                        saldoVal = totC - totD;
+                        saldoFinalText = `Saldo Credor: R$ ${saldoVal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+                    }
+
+                    let debHTML = movs.filter(m => m.tipo === 'D').map(m => `
+                        <div class="flex justify-between py-0.5 text-xs">
+                            <span class="text-slate-400 font-mono">L${m.numeroLanc}</span>
+                            <span class="font-mono text-blue-700">R$ ${m.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    `).join('');
+
+                    let credHTML = movs.filter(m => m.tipo === 'C').map(m => `
+                        <div class="flex justify-between py-0.5 text-xs">
+                            <span class="text-slate-400 font-mono">L${m.numeroLanc}</span>
+                            <span class="font-mono text-emerald-700">R$ ${m.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    `).join('');
+
+                    card.innerHTML = `
+                        <div class="bg-slate-800 text-white p-2.5 text-xs font-bold text-center uppercase tracking-wide">
+                            ${conta.codigo} - ${conta.nome}
+                        </div>
+                        <div class="grid grid-cols-2 divide-x divide-slate-300 p-3 min-h-[120px]">
+                            <div class="pr-2 space-y-1">
+                                <span class="text-[10px] font-bold text-blue-700 block border-b border-slate-200 pb-1 uppercase">Débito (D)</span>
+                                ${debHTML || '<span class="text-[11px] text-slate-300 italic">-</span>'}
+                            </div>
+                            <div class="pl-2 space-y-1">
+                                <span class="text-[10px] font-bold text-emerald-700 block border-b border-slate-200 pb-1 uppercase">Crédito (C)</span>
+                                ${credHTML || '<span class="text-[11px] text-slate-300 italic">-</span>'}
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 border-t border-slate-200 p-2 font-mono text-xs font-bold text-center text-slate-700">
+                            ${saldoFinalText}
+                        </div>
+                    `;
+
+                    container.appendChild(card);
+                }
+            });
+        }
+
+        /**
+         * INICIALIZAÇÃO DO SISTEMA
+         */
+        window.onload = function() {
+            carregarDadosStorage();
+
+            // Se não existir empresa, cria a primeira por padrão
+            if (!estado.empresas || estado.empresas.length === 0) {
+                const empresaInicial = {
+                    id: 'emp_' + Date.now(),
+                    razaoSocial: 'Alpha Tecnologia & Serviços Ltda',
+                    socios: 'Roberto Alves, Fernanda Lima',
+                    contador: 'Marcos Vinicius de Souza',
+                    crc: 'CRC-SP 345678/O-1',
+                    tipo: 'TIPO_A',
+                    ativa: true,
+                    lancamentos: []
+                };
+                estado.empresas = [empresaInicial];
+                estado.empresaAtivaId = empresaInicial.id;
+                salvarDadosStorage();
+            } else if (!estado.empresaAtivaId) {
+                estado.empresaAtivaId = estado.empresas[0].id;
+            }
+
+            // Garantir campo de status ativo para empresas legadas
+            estado.empresas.forEach(e => {
+                if (e.ativa === undefined) e.ativa = true;
+            });
+
+            // Inicializar Lucide Icons
+            lucide.createIcons();
+
+            // Configurar formulários e interface
+            renderizarLinhasModalImplantacao();
+            prepararFormularioLancamento();
+            renderizarTudo();
+        };
+
+        /**
+         * RENDERIZAÇÃO COMPLETA DA INTERFACE
+         */
+        function renderizarTudo() {
+            const emp = getEmpresaAtiva();
+            if (!emp) return;
+
+            // Renderizar Abas de Empresas no Topo
+            renderizarAbasEmpresas();
+
+            // Atualizar Dados no Cabeçalho da Empresa
+            document.getElementById('empresaNomeHeader').innerText = emp.razaoSocial;
+            document.getElementById('empresaSociosHeader').innerText = emp.socios;
+            document.getElementById('empresaContadorHeader').innerText = emp.contador;
+            document.getElementById('empresaCrcHeader').innerText = emp.crc;
+            document.getElementById('empresaTipoBadge').innerText = emp.tipo === 'TIPO_A' ? 'Abertura Do Zero' : 'Implantação de Saldos';
+
+            // Atualizar Badge de Status e Botão Desativar/Reativar
+            const statusBadge = document.getElementById('empresaStatusBadge');
+            const btnStatus = document.getElementById('btnAlternarStatusEmpresa');
+            const labelStatusBtn = document.getElementById('labelStatusBtn');
+            const btnExcluir = document.getElementById('btnExcluirEmpresa');
+            const formLancamento = document.getElementById('formLancamento');
+
+            if (emp.ativa) {
+                statusBadge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800";
+                statusBadge.innerText = "Empresa Ativa";
+                labelStatusBtn.innerText = "Desativar Empresa";
+                btnStatus.className = "inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100";
+                
+                // Empresa Ativa: Não pode ser excluída
+                btnExcluir.disabled = true;
+                btnExcluir.classList.add('opacity-40', 'cursor-not-allowed');
+                btnExcluir.title = "Primeiro desative a empresa para habilitar a opção de exclusão.";
+
+                if (formLancamento) {
+                    formLancamento.querySelectorAll('input, select, button').forEach(el => el.disabled = false);
+                }
+            } else {
+                statusBadge.className = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800";
+                statusBadge.innerText = "Empresa Desativada";
+                labelStatusBtn.innerText = "Reativar Empresa";
+                btnStatus.className = "inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100";
+                
+                // Empresa Desativada: Pode ser excluída (respeitando a trava de empresa única se necessário)
+                if (estado.empresas.length <= 1) {
+                    btnExcluir.disabled = true;
+                    btnExcluir.classList.add('opacity-40', 'cursor-not-allowed');
+                    btnExcluir.title = "Segurança: Não é permitido excluir a única empresa do sistema.";
+                } else {
+                    btnExcluir.disabled = false;
+                    btnExcluir.classList.remove('opacity-40', 'cursor-not-allowed');
+                    btnExcluir.title = "Excluir Empresa Desativada";
+                }
+
+                // Desabilitar novos lançamentos em empresas inativas
+                if (formLancamento) {
+                    formLancamento.querySelectorAll('input, select, button[type="submit"]').forEach(el => el.disabled = true);
+                }
+            }
+
+            // Dados para Impressão Oficial
+            document.getElementById('printEmpresaNome').innerText = emp.razaoSocial + (emp.ativa ? "" : " (DESATIVADA)");
+            document.getElementById('printEmpresaSocios').innerText = emp.socios;
+            document.getElementById('printEmpresaContador').innerText = emp.contador;
+            document.getElementById('printEmpresaCrc').innerText = emp.crc;
+            document.getElementById('printCompetencia').innerText = estado.competenciaFiltro === 'TODAS' ? 'Acumulado Geral' : estado.competenciaFiltro;
+
+            // Atualizar Select de Competências
+            atualizarSelectCompetencias(emp);
+
+            // Renderizar Abas Internas de Relatórios
+            renderizarHistoricoLancamentos(emp);
+            renderizarBalancoPatrimonial(emp);
+            renderizarDRE(emp);
+            renderizarBalancete(emp);
+            renderizarLivroDiario(emp);
+            renderizarRazoetes(emp);
+
+            lucide.createIcons();
+        }
+
+        /**
+         * RENDERIZAÇÃO DAS ABAS SUPREMAS DAS EMPRESAS
+         */
+        function renderizarAbasEmpresas() {
+            const container = document.getElementById('listaEmpresasAbas');
+            container.innerHTML = '';
+
+            estado.empresas.forEach(emp => {
+                const isSelected = emp.id === estado.empresaAtivaId;
+                const btn = document.createElement('button');
+                btn.onclick = () => selecionarEmpresa(emp.id);
+                btn.className = `px-4 py-2.5 text-xs font-semibold rounded-t-lg transition flex items-center space-x-2 whitespace-nowrap border-b-2 ${
+                    isSelected 
+                    ? 'bg-slate-100 text-brand-900 border-brand-500 font-bold' 
+                    : 'text-slate-400 hover:text-slate-200 border-transparent hover:bg-slate-700/50'
+                }`;
+                btn.innerHTML = `
+                    <i data-lucide="${emp.ativa ? 'building-2' : 'building-2'}" class="w-3.5 h-3.5 ${emp.ativa ? '' : 'text-red-400'}"></i> 
+                    <span class="${emp.ativa ? '' : 'line-through text-slate-400'}">${emp.razaoSocial}</span>
+                    ${!emp.ativa ? '<span class="text-[9px] bg-red-900/40 text-red-300 px-1 rounded ml-1">Inativa</span>' : ''}
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        /**
+         * DESATIVAR / REATIVAR EMPRESA
+         */
+        function alternarStatusEmpresa(e) {
+            if (e) e.preventDefault();
+            const emp = getEmpresaAtiva();
+            if (!emp) return;
+
+            // Se for desativar, verificar se restará pelo menos uma empresa ativa no sistema
+            if (emp.ativa) {
+                const ativasRestantes = estado.empresas.filter(item => item.ativa && item.id !== emp.id);
+                if (ativasRestantes.length === 0) {
+                    mostrarToast("Segurança: É necessário manter ao menos 1 empresa ATIVA no sistema.", "warning");
+                    return;
+                }
+
+                if (window.confirm(`Deseja realmente DESATIVAR a empresa "${emp.razaoSocial}"?\nNovos lançamentos serão bloqueados até que seja reativada.`)) {
+                    emp.ativa = false;
+                    salvarDadosStorage();
+                    mostrarToast("Empresa desativada com sucesso. Agora você pode excluí-la se desejar.", "info");
+                    renderizarTudo();
+                }
+            } else {
+                emp.ativa = true;
+                salvarDadosStorage();
+                mostrarToast("Empresa reativada com sucesso!", "success");
+                renderizarTudo();
+            }
+        }
+
+        /**
+         * SALVAR NOVO LANÇAMENTO MANUAL (PARTIDA DOBRADA)
+         */
+        function salvarLancamento(e) {
+            e.preventDefault();
+            const emp = getEmpresaAtiva();
+            if (!emp) return;
+
+            if (!emp.ativa) {
+                mostrarToast("Não é possível realizar lançamentos em uma empresa DESATIVADA. Reative-a primeiro.", "error");
+                return;
+            }
+
+            const data = document.getElementById('lancData').value;
+            const historico = document.getElementById('lancHistorico').value;
+
+            const linhasEl = document.querySelectorAll('#tabelaLinhasLancamento tr');
+            const itens = [];
+            let totalD = 0;
+            let totalC = 0;
+
+            for (let linha of linhasEl) {
+                const tipo = linha.querySelector('.tipo-linha').value;
+                const contaCodigo = linha.querySelector('.conta-linha').value;
+                const val = parseFloat(linha.querySelector('.valor-linha').value) || 0;
+
+                if (!contaCodigo) {
+                    mostrarToast("Selecione a conta contábil para todas as linhas.", "error");
+                    return;
+                }
+                if (val <= 0) {
+                    mostrarToast("Valores dos lançamentos devem ser maiores que zero.", "error");
+                    return;
+                }
+
+                if (tipo === 'D') totalD += val;
+                if (tipo === 'C') totalC += val;
+
+                itens.push({ tipo, contaCodigo, valor: val });
+            }
+
+            // Validação CPC 00 - Partidas Dobradas
+            if (Math.abs(totalD - totalC) > 0.001) {
+                mostrarToast(`Inconsistência: Total de Débitos (R$ ${totalD.toFixed(2)}) diferente dos Créditos (R$ ${totalC.toFixed(2)}).`, "error");
+                return;
+            }
+
+            const novoLancamento = {
+                id: 'lanc_' + Date.now(),
+                numero: (emp.lancamentos.length + 1),
+                data,
+                historico,
+                itens,
+                valorTotal: totalD
+            };
+
+            emp.lancamentos.push(novoLancamento);
+            salvarDadosStorage();
+
+            mostrarToast("Lançamento Contábil registrado com sucesso!", "success");
+            prepararFormularioLancamento();
+            renderizarTudo();
+        }
+
+        function salvarNovaEmpresa(e) {
+            e.preventDefault();
+
+            const razaoSocial = document.getElementById('cadRazaoSocial').value;
+            const socios = document.getElementById('cadSocios').value;
+            const contador = document.getElementById('cadContador').value;
+            const crc = document.getElementById('cadCrc').value;
+            const tipo = document.querySelector('input[name="modalidadeEmpresa"]:checked').value;
+
+            const novaEmpresa = {
+                id: 'emp_' + Date.now(),
+                razaoSocial,
+                socios,
+                contador,
+                crc,
+                tipo,
+                ativa: true,
+                lancamentos: []
+            };
+
+            // Se for Tipo B - Implantação de Saldos Inicial
+            if (tipo === 'TIPO_B') {
+                const { somaD, somaC } = calcularTotaisImplantacaoModal();
+                if (Math.abs(somaD - somaC) > 0.001 || somaD === 0) {
+                    mostrarToast("Na implantação de saldos, o total de Débitos deve ser igual ao total de Créditos e maior que zero.", "error");
+                    return;
+                }
+
+                const itens = [];
+                const inputs = document.querySelectorAll('#listaImplantacaoContas .imp-valor');
+                inputs.forEach(inp => {
+                    const val = parseFloat(inp.value) || 0;
+                    const contaCodigo = inp.getAttribute('data-codigo');
+                    const tipoMov = inp.previousElementSibling.value;
+                    if (val > 0) {
+                        itens.push({ tipo: tipoMov, contaCodigo, valor: val });
+                    }
+                });
+
+                // Criar Lançamento 01 de Abertura
+                const lancAbertura = {
+                    id: 'lanc_' + Date.now(),
+                    numero: 1,
+                    data: new Date().toISOString().split('T')[0],
+                    historico: "Balanço de Abertura - Implantação de Saldos Iniciais",
+                    itens,
+                    valorTotal: somaD
+                };
+                novaEmpresa.lancamentos.push(lancAbertura);
+            }
+
+            estado.empresas.push(novaEmpresa);
+            estado.empresaAtivaId = novaEmpresa.id;
+            estado.competenciaFiltro = 'TODAS';
+            salvarDadosStorage();
+
+            closeModal('modalNovaEmpresa');
+            mostrarToast("Nova Empresa cadastrada e ativada com sucesso!", "success");
+            renderizarTudo();
+        }
+
+        /**
+         * EDIÇÃO DE DADOS DA EMPRESA
+         */
+        function abrirModalEditarEmpresa() {
+            const emp = getEmpresaAtiva();
+            if (!emp) return;
+
+            document.getElementById('editRazaoSocial').value = emp.razaoSocial || '';
+            document.getElementById('editSocios').value = emp.socios || '';
+            document.getElementById('editContador').value = emp.contador || '';
+            document.getElementById('editCrc').value = emp.crc || '';
+
+            openModal('modalEditarEmpresa');
+        }
+
+        function salvarEdicaoEmpresa(e) {
+            e.preventDefault();
+            const emp = getEmpresaAtiva();
+            if (!emp) return;
+
+            emp.razaoSocial = document.getElementById('editRazaoSocial').value.trim();
+            emp.socios = document.getElementById('editSocios').value.trim();
+            emp.contador = document.getElementById('editContador').value.trim();
+            emp.crc = document.getElementById('editCrc').value.trim();
+
+            salvarDadosStorage();
+            closeModal('modalEditarEmpresa');
+            mostrarToast("Dados cadastrais da empresa atualizados com sucesso!", "success");
+            renderizarTudo();
+        }
+
+        /**
+         * REGRA CRÍTICA: SEGURANÇA NA EXCLUSÃO DA EMPRESA
+         */
+        function confirmarExclusaoEmpresa(e) {
+            if (e) e.preventDefault();
+
+            const emp = getEmpresaAtiva();
+            if (!emp) return;
+
+            if (emp.ativa) {
+                mostrarToast("Regra: Para excluir a empresa, você deve desativá-la primeiro no botão 'Desativar Empresa'.", "warning");
+                return;
+            }
+
+            if (!estado.empresas || estado.empresas.length <= 1) {
+                mostrarToast("Ação Bloqueada: O sistema exige no mínimo uma empresa cadastrada.", "warning");
+                return;
+            }
+
+            const mensagem = `ATENÇÃO: Tem certeza que deseja EXCLUIR DEFINITIVAMENTE a empresa desativada "${emp.razaoSocial}" e todos os seus lançamentos contábeis?`;
+            
+            if (window.confirm(mensagem)) {
+                // Remover empresa atual do array de empresas
+                estado.empresas = estado.empresas.filter(e => e.id !== emp.id);
+                
+                // Migrar o foco automaticamente para a primeira empresa que restou
+                estado.empresaAtivaId = estado.empresas[0].id;
+                estado.competenciaFiltro = 'TODAS';
+                
+                salvarDadosStorage();
+                mostrarToast("Empresa excluída permanentemente com sucesso.", "info");
+                renderizarTudo();
+            }
+        }
+
+        /**
+         * SERVIÇO DE EXPORTAÇÃO EXCEL (.XLSX SEGURO)
+         */
+        function exportarExcel(elementId, nomeArquivo) {
+            const table = document.getElementById(elementId);
+            if (!table) return;
+
+            try {
+                const wb = XLSX.utils.table_to_book(table, { sheet: "Relatorio_Contabil" });
+                XLSX.writeFile(wb, `${nomeArquivo}_${new Date().toISOString().split('T')[0]}.xlsx`);
+                mostrarToast("Relatório exportado para Excel com sucesso!", "success");
+            } catch (err) {
+                mostrarToast("Erro ao exportar arquivo para Excel.", "error");
+            }
+        }
+
+        /**
+         * NAVEGAÇÃO DE ABAS INTERNAS
+         */
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-brand-500', 'text-brand-600');
+                el.classList.add('border-transparent', 'text-slate-500');
+            });
+
+            const content = document.getElementById('content-' + tabId);
+            const btn = document.getElementById('tab-' + tabId);
+
+            if (content && btn) {
+                content.classList.remove('hidden');
+                btn.classList.add('border-brand-500', 'text-brand-600');
+                btn.classList.remove('border-transparent', 'text-slate-500');
+            }
+        }
+
+        /**
+         * CONTROLE DE MODAIS E NOTIFICAÇÕES TOAST
+         */
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            }
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            }
+        }
+
+        function mostrarToast(mensagem, tipo = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-800 text-white";
+            if (tipo === 'success') bgClass = "bg-emerald-700 text-white";
+            if (tipo === 'error') bgClass = "bg-red-700 text-white";
+            if (tipo === 'warning') bgClass = "bg-amber-600 text-white";
+
+            toast.className = `${bgClass} text-xs font-semibold px-4 py-3 rounded-lg shadow-lg pointer-events-auto transition-all duration-300 flex items-center space-x-2`;
+            toast.innerHTML = `<span>${mensagem}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
